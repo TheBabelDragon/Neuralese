@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 from neuralese._version import __software_id__, __version__
 
 MANIFEST_SCHEMA_ID = "neuralese.run_manifest"
-MANIFEST_SCHEMA_VERSION = "1.0.0"
+MANIFEST_SCHEMA_VERSION = "1.1.0"
 
 
 def utc_now() -> str:
@@ -42,14 +42,20 @@ def build_manifest(
         "dataset_id": dataset_id,
         "split_id": split_id,
         "seed": seed,
+        "master_seed": seed,
         "adapter": adapter_identity,
         "tensorgate": tensorgate_status,
         "conditions": conditions,
         "budget": budget,
+        "budget_policy": budget,
         "hypotheses": hypotheses or [],
         "limitations": limitations or [],
         "runs": runs,
         "aggregates": aggregates,
+        "accounting_note": (
+            "Toy/synthetic measurements are flagged synthetic=true and must not be "
+            "interpreted as real model cost."
+        ),
     }
 
 
@@ -65,13 +71,18 @@ def write_markdown_summary(path: Path, manifest: Dict[str, Any]) -> None:
         "",
         f"- Schema: `{manifest.get('schema_id')}` v{manifest.get('schema_version')}",
         f"- Software: `{manifest.get('software_id')}`",
-        f"- Seed: `{manifest.get('seed')}`",
+        f"- Master seed: `{manifest.get('master_seed', manifest.get('seed'))}`",
         f"- Dataset/split: `{manifest.get('dataset_id')}` / `{manifest.get('split_id')}`",
         f"- Timestamp (UTC): {manifest.get('timestamp_utc')}",
         "",
-        "## TensorGate",
+        "## Status separation",
         "",
-        f"```json\n{json.dumps(manifest.get('tensorgate', {}), indent=2)}\n```",
+        "Execution status ≠ scientific outcome. A completed run with a negative",
+        "hypothesis result remains completed.",
+        "",
+        "## Budget policy",
+        "",
+        f"```json\n{json.dumps(manifest.get('budget', {}), indent=2)}\n```",
         "",
         "## Aggregates by condition",
         "",
@@ -82,6 +93,9 @@ def write_markdown_summary(path: Path, manifest: Dict[str, Any]) -> None:
         acc_s = f"{acc:.3f}" if isinstance(acc, float) else str(acc)
         lines.append(
             f"- **{cond}**: accuracy={acc_s} "
+            f"exec={stats.get('execution_status')} "
+            f"outcome={stats.get('condition_outcome')} "
+            f"hyp={stats.get('hypothesis_result')} "
             f"(n={stats.get('n_total')}, correct={stats.get('n_correct')}, "
             f"wrong={stats.get('n_wrong')}, inconclusive={stats.get('n_inconclusive')})"
         )
