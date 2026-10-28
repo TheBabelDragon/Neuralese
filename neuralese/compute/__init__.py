@@ -1,3 +1,3 @@
-from .budget import ComputeBudget, ComputeUsage, BudgetTracker
+from .budget import ComputeBudget, ComputeUsage, BudgetTracker, BudgetExhausted
 
-__all__ = ["ComputeBudget", "ComputeUsage", "BudgetTracker"]
+__all__ = ["ComputeBudget", "ComputeUsage", "BudgetTracker", "BudgetExhausted"]
