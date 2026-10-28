@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neuralese"
+version = "0.1.0"
+description = "Experimental infrastructure for reproducible evaluation of latent-state reasoning, representation interventions, and adaptive computation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "TheBabelDragon" }]
+dependencies = ["numpy>=1.22"]
+
+[project.optional-dependencies]
+tensorgate = ["tensorgate>=0.1.0"]
+dev = ["pytest>=7", "pytest-cov"]
+
+[project.scripts]
+neuralese = "neuralese.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/TheBabelDragon/Neuralese"
+Repository = "https://github.com/TheBabelDragon/Neuralese"
+Related = "https://github.com/TheBabelDragon/TensorGate"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["neuralese*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
