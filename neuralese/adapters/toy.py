@@ -1,6 +1,7 @@
 """Deterministic local toy adapter for CI and pipeline smoke tests.
 
 Does NOT demonstrate real neural latent reasoning.
+Accounting is synthetic and must never be reported as real model cost.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from typing import Any, Dict
 
 import numpy as np
 
-from neuralese.core.types import Prediction, ReasoningTask
+from neuralese.core.types import AdapterCapabilities, Prediction, ReasoningTask, UsageReport
 from neuralese.tensorgate_adapter.bridge import (
     LatentBundle,
     make_latent_bundle,
@@ -22,9 +23,11 @@ _SYMBOL_TABLE = {
     "RED": np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32),
     "BLUE": np.array([0.0, 1.0, 0.0, 0.0], dtype=np.float32),
     "GREEN": np.array([0.0, 0.0, 1.0, 0.0], dtype=np.float32),
+    "YELLOW": np.array([1.0, 1.0, 0.0, 0.0], dtype=np.float32),
     "SQUARE": np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32),
-    "CIRCLE": np.array([0.5, 0.5, 0.0, 0.0], dtype=np.float32),
+    "CIRCLE": np.array([0.0, 1.0, 1.0, 0.0], dtype=np.float32),
     "TRIANGLE": np.array([0.0, 0.5, 0.5, 0.0], dtype=np.float32),
+    "HEXAGON": np.array([0.25, 0.25, 0.25, 0.25], dtype=np.float32),
 }
 
 
@@ -58,12 +61,23 @@ def _decode_answer_from_latent(arr: np.ndarray, slots_keys: list) -> str:
     return " ".join(recovered)
 
 
+def _synthetic_usage(*, steps: int = 1) -> UsageReport:
+    return UsageReport(
+        adapter_invocations=1,
+        model_calls=0,
+        tokens=None,
+        steps=steps,
+        latency_ms=None,
+        synthetic=True,
+    )
+
+
 @dataclass
 class ToyAdapter:
     adapter_id: str = "neuralese-toy"
-    adapter_version: str = "0.1.0"
+    adapter_version: str = "0.2.0"
     model_id: str = "toy-symbol-encoder"
-    model_revision: str = "v1"
+    model_revision: str = "v2"
 
     def identity(self) -> Dict[str, Any]:
         return {
@@ -73,33 +87,50 @@ class ToyAdapter:
             "model_revision": self.model_revision,
             "decoding": "nearest-symbol-L2",
             "note": "Toy adapter for CI only — not real neural latent reasoning",
+            "accounting": "synthetic",
         }
 
-    def direct_answer(self, task: ReasoningTask) -> Prediction:
+    def capabilities(self) -> AdapterCapabilities:
+        return AdapterCapabilities(
+            direct_answer=True,
+            text_intermediate=True,
+            latent_produce=True,
+            latent_consume=True,
+            reports_model_calls=False,
+            reports_tokens=False,
+            reports_latency=False,
+            synthetic_accounting=True,
+            notes="Synthetic symbol encoder; model_calls always 0",
+        )
+
+    def direct_answer(self, task: ReasoningTask):
         ans = " ".join(
             str(task.intermediate_slots[k]).upper() for k in sorted(task.intermediate_slots)
         )
-        return Prediction(
+        pred = Prediction(
             task_id=task.task_id, answer=ans, confidence=1.0, raw={"mode": "direct"}
         )
+        return pred, _synthetic_usage()
 
-    def text_intermediate(self, task: ReasoningTask) -> tuple:
+    def text_intermediate(self, task: ReasoningTask):
         text = " | ".join(f"{k}={v}" for k, v in sorted(task.intermediate_slots.items()))
         ans = " ".join(
             str(task.intermediate_slots[k]).upper() for k in sorted(task.intermediate_slots)
         )
-        return text, Prediction(
+        pred = Prediction(
             task_id=task.task_id,
             answer=ans,
             confidence=1.0,
             raw={"mode": "text", "intermediate": text},
         )
+        return text, pred, _synthetic_usage()
 
     def produce_latent(self, task: ReasoningTask):
         arr = _encode_slots(task.intermediate_slots)
+        usage = _synthetic_usage()
         if not tensorgate_available():
-            return arr
-        return make_latent_bundle(
+            return arr, usage
+        bundle = make_latent_bundle(
             arr,
             model_id=self.model_id,
             model_revision=self.model_revision,
@@ -107,8 +138,9 @@ class ToyAdapter:
             representation_semantics="synthetic_symbol_slots",
             architecture_id="toy-symbol-encoder",
         )
+        return bundle, usage
 
-    def predict_from_latent(self, task: ReasoningTask, latent: Any) -> Prediction:
+    def predict_from_latent(self, task: ReasoningTask, latent: Any):
         if isinstance(latent, LatentBundle):
             arr = latent.array
             lid = latent.latent_id
@@ -117,9 +149,10 @@ class ToyAdapter:
             lid = ""
         keys = sorted(task.intermediate_slots.keys())
         ans = _decode_answer_from_latent(arr, keys)
-        return Prediction(
+        pred = Prediction(
             task_id=task.task_id,
             answer=ans,
             confidence=1.0 if "?" not in ans else 0.0,
             raw={"mode": "latent", "latent_id": lid},
         )
+        return pred, _synthetic_usage()

@@ -1,21 +1,36 @@
 from .types import (
     RunStatus,
+    ExecutionStatus,
+    ConditionOutcome,
+    HypothesisResult,
     ExperimentCondition,
     ReasoningTask,
     ReferenceAnswer,
     Prediction,
     EvaluationOutcome,
+    EvaluationCompleteness,
     ReasoningRun,
     ModelAdapter,
+    AdapterCapabilities,
+    UsageReport,
 )
+from .seeding import stable_seed, task_index_seed
 
 __all__ = [
     "RunStatus",
+    "ExecutionStatus",
+    "ConditionOutcome",
+    "HypothesisResult",
     "ExperimentCondition",
     "ReasoningTask",
     "ReferenceAnswer",
     "Prediction",
     "EvaluationOutcome",
+    "EvaluationCompleteness",
     "ReasoningRun",
     "ModelAdapter",
+    "AdapterCapabilities",
+    "UsageReport",
+    "stable_seed",
+    "task_index_seed",
 ]
